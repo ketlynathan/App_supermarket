@@ -5,7 +5,7 @@ import { Badge } from './components/ui/badge';
 import { CreateListModal } from './components/CreateListModal';
 import { ShoppingMode } from './components/ShoppingMode';
 import { FinishShoppingModal } from './components/FinishShoppingModal';
-import { Plus, ShoppingCart, Users, Edit, Trash2, Calendar } from 'lucide-react';
+import { Plus, ShoppingCart, Users, Trash2, Calendar } from 'lucide-react';
 
 interface ShoppingList {
   id: number;
@@ -26,27 +26,18 @@ interface ShoppingItem {
   total?: number;
 }
 
-type ViewMode = 'lists' | 'shopping' | 'finished';
+type ViewMode = 'list' | 'shopping';
 
 export default function App() {
-  const [lists, setLists] = useState<ShoppingList[]>([
-    {
-      id: 1,
-      name: 'Compras da Semana',
-      items: ['Arroz', 'Feijão', 'Carne', 'Verduras', 'Frutas'],
-      createdAt: new Date(),
-      sharedWith: ['familia@exemplo.com']
-    },
-    {
-      id: 2,
-      name: 'Ingredientes para Jantar',
-      items: ['Frango', 'Batata', 'Cebola', 'Alho'],
-      createdAt: new Date(),
-      sharedWith: []
-    }
-  ]);
+  const [list, setList] = useState<ShoppingList | null>({
+    id: 1,
+    name: 'Compras da Semana',
+    items: ['Arroz', 'Feijão', 'Carne', 'Verduras', 'Frutas'],
+    createdAt: new Date(),
+    sharedWith: ['familia@exemplo.com']
+  });
 
-  const [viewMode, setViewMode] = useState<ViewMode>('lists');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
   const [currentList, setCurrentList] = useState<ShoppingList | null>(null);
@@ -63,26 +54,29 @@ export default function App() {
       createdAt: new Date(),
       sharedWith: newListData.sharedWith
     };
-    setLists([newList, ...lists]);
+    setList(newList);
   };
 
-  const handleStartShopping = (list: ShoppingList) => {
-    setCurrentList(list);
+  const handleStartShopping = (shoppingList: ShoppingList) => {
+    setCurrentList(shoppingList);
     setViewMode('shopping');
   };
 
   const handleFinishShopping = (purchasedItems: ShoppingItem[], notPurchased: string[]) => {
     if (currentList) {
       const totalSpent = purchasedItems.reduce((sum, item) => sum + (item.total || 0), 0);
-      
-      // Update the list as completed
-      setLists(prevLists => 
-        prevLists.map(list => 
-          list.id === currentList.id 
-            ? { ...list, completed: true, totalSpent }
-            : list
-        )
-      );
+
+      setList((previousList) => {
+        if (!previousList || previousList.id !== currentList.id) {
+          return previousList;
+        }
+
+        return {
+          ...previousList,
+          completed: true,
+          totalSpent
+        };
+      });
 
       setFinishData({ purchasedItems, notPurchased });
       setIsFinishModalOpen(true);
@@ -98,18 +92,20 @@ export default function App() {
         createdAt: new Date(),
         sharedWith: currentList.sharedWith
       };
-      setLists([newList, ...lists]);
+      setList(newList);
     }
   };
 
   const handleBackToLists = () => {
-    setViewMode('lists');
+    setViewMode('list');
     setCurrentList(null);
     setFinishData(null);
   };
 
   const handleDeleteList = (listId: number) => {
-    setLists(lists.filter(list => list.id !== listId));
+    if (list?.id === listId) {
+      setList(null);
+    }
   };
 
   const formatDate = (date: Date) => {
@@ -134,7 +130,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50">
       <div className="max-w-md mx-auto p-4">
-        {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-orange-800 mb-2 flex items-center justify-center gap-2">
             <ShoppingCart className="w-6 h-6" />
@@ -143,24 +138,22 @@ export default function App() {
           <p className="text-orange-600">Sua compra organizada e inteligente</p>
         </div>
 
-        {/* Create New List Button */}
         <Button
           onClick={() => setIsCreateModalOpen(true)}
           className="w-full mb-6 bg-orange-500 hover:bg-orange-600 text-white py-4"
         >
           <Plus className="w-5 h-5 mr-2" />
-          Nova Lista de Compras
+          {list ? 'Substituir Lista de Compras' : 'Nova Lista de Compras'}
         </Button>
 
-        {/* Lists */}
         <div className="space-y-4">
-          {lists.length === 0 ? (
+          {!list ? (
             <Card className="border-orange-200">
               <CardContent className="p-6 text-center">
                 <ShoppingCart className="w-12 h-12 mx-auto text-orange-400 mb-4" />
                 <h3 className="text-orange-800 mb-2">Nenhuma lista criada</h3>
                 <p className="text-orange-600 text-sm mb-4">
-                  Crie sua primeira lista de compras para começar!
+                  Crie sua lista de compras para começar!
                 </p>
                 <Button
                   onClick={() => setIsCreateModalOpen(true)}
@@ -172,104 +165,93 @@ export default function App() {
               </CardContent>
             </Card>
           ) : (
-            lists.map((list) => (
-              <Card 
-                key={list.id} 
-                className={`border-orange-200 hover:border-orange-300 transition-all ${
-                  list.completed ? 'bg-green-50 border-green-300' : 'bg-white/70'
-                }`}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-orange-800 text-lg">{list.name}</CardTitle>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-orange-600">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {formatDate(list.createdAt)}
-                        </div>
-                        {list.sharedWith.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Users className="w-3 h-3" />
-                            {list.sharedWith.length}
-                          </div>
-                        )}
+            <Card
+              key={list.id}
+              className={`border-orange-200 hover:border-orange-300 transition-all ${
+                list.completed ? 'bg-green-50 border-green-300' : 'bg-white/70'
+              }`}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-orange-800 text-lg">{list.name}</CardTitle>
+                    <div className="flex items-center gap-4 mt-2 text-sm text-orange-600">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {formatDate(list.createdAt)}
                       </div>
-                    </div>
-                    
-                    {list.completed ? (
-                      <Badge className="bg-green-600 text-white">
-                        Concluída - R$ {list.totalSpent?.toFixed(2)}
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-                        {list.items.length} itens
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="pt-0">
-                  <div className="mb-4">
-                    <div className="text-sm text-orange-700 mb-2">Itens:</div>
-                    <div className="flex flex-wrap gap-1">
-                      {list.items.slice(0, 4).map((item, index) => (
-                        <Badge key={index} variant="outline" className="text-xs border-orange-300 text-orange-700">
-                          {item}
-                        </Badge>
-                      ))}
-                      {list.items.length > 4 && (
-                        <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">
-                          +{list.items.length - 4} mais
-                        </Badge>
+                      {list.sharedWith.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Users className="w-3 h-3" />
+                          {list.sharedWith.length}
+                        </div>
                       )}
                     </div>
                   </div>
 
-                  {list.sharedWith.length > 0 && (
-                    <div className="mb-4">
-                      <div className="text-sm text-orange-700 mb-1">Compartilhada com:</div>
-                      <div className="text-xs text-orange-600">
-                        {list.sharedWith.join(', ')}
-                      </div>
+                  {list.completed ? (
+                    <Badge className="bg-green-600 text-white">
+                      Concluída - R$ {list.totalSpent?.toFixed(2)}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                      {list.items.length} itens
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+
+              <CardContent className="pt-0">
+                <div className="mb-4">
+                  <div className="text-sm text-orange-700 mb-2">Itens:</div>
+                  <div className="flex flex-wrap gap-1">
+                    {list.items.slice(0, 4).map((item, index) => (
+                      <Badge key={index} variant="outline" className="text-xs border-orange-300 text-orange-700">
+                        {item}
+                      </Badge>
+                    ))}
+                    {list.items.length > 4 && (
+                      <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">
+                        +{list.items.length - 4} mais
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {list.sharedWith.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-sm text-orange-700 mb-1">Compartilhada com:</div>
+                    <div className="text-xs text-orange-600">
+                      {list.sharedWith.join(', ')}
                     </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  {!list.completed && (
+                    <Button
+                      onClick={() => handleStartShopping(list)}
+                      className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                    >
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Iniciar Compras
+                    </Button>
                   )}
 
-                  <div className="flex gap-2">
-                    {!list.completed && (
-                      <Button
-                        onClick={() => handleStartShopping(list)}
-                        className="flex-1 bg-green-500 hover:bg-green-600 text-white"
-                      >
-                        <ShoppingCart className="w-4 h-4 mr-2" />
-                        Iniciar Compras
-                      </Button>
-                    )}
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-orange-300 text-orange-700 hover:bg-orange-50"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    
-                    <Button
-                      onClick={() => handleDeleteList(list.id)}
-                      variant="outline"
-                      size="sm"
-                      className="border-red-300 text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  <Button
+                    onClick={() => handleDeleteList(list.id)}
+                    variant="outline"
+                    size="sm"
+                    className="border-red-300 text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
 
-        {/* Modals */}
         <CreateListModal
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
